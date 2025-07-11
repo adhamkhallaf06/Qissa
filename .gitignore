@@ -1,1 +1,9 @@
-output
+output_splits
+
+input
+
+client_secret.json
+
+token.pickle
+
+.gitattributes
