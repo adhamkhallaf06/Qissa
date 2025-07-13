@@ -5,20 +5,28 @@ import subprocess
 input_folder = "input"
 output_folder = "output_splits"
 
+allowed_extensions = (".mp4", ".mov", ".mkv", ".avi", ".flv", ".webm", ".mpg", ".mpeg", ".3gp")
+
 if not os.path.exists(input_folder):
     print(f"Input folder '{input_folder}' not found.")
     exit()
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
+# Clean output folder
 for f in os.listdir(output_folder):
     path = os.path.join(output_folder, f)
     if os.path.isfile(path):
         os.remove(path)
 
-video_files = [f for f in os.listdir(input_folder) if f.endswith(".mp4")]
+# Filter only video files with allowed extensions
+video_files = [
+    f for f in os.listdir(input_folder)
+    if os.path.isfile(os.path.join(input_folder, f)) and f.lower().endswith(allowed_extensions)
+]
+
 if not video_files:
-    print("No .mp4 files found.")
+    print("No video files found.")
     exit()
 
 for vid in video_files:
@@ -38,4 +46,4 @@ for vid in video_files:
     print(f"Running:\n{split_command}\n")
     subprocess.run(split_command, shell=True, check=True)
 
-print("\nAll videos split successfully.")
+print("\n✅ All videos split successfully.")

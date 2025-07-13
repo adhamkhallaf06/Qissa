@@ -7,7 +7,7 @@ if not os.path.exists(folder):
     print(f"Folder '{folder}' not found.")
     exit()
 
-clips = sorted([f for f in os.listdir(folder) if f.endswith(".mp4")])
+clips = sorted([f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))])
 
 if not clips:
     print("No .mp4 files found.")
