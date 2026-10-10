@@ -5,13 +5,16 @@ from app.schemas import PipelineOptions
 from app.services import cleaner, processor, splitter, uploader
 
 
-def run_step(name, step, **kwargs):
-    print(f"\n🔹 Running {name}...")
-    step(**kwargs)
-
-
-def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR):
+def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_step=None, interactive=True):
+    """Run every enabled step. Returns the list of uploaded videos."""
     options = options or PipelineOptions()
+
+    def run_step(name, step, **kwargs):
+        print(f"\n🔹 Running {name}...")
+        if on_step:
+            on_step(name)
+        return step(**kwargs)
+
     print("✅ STARTING FULL AUTOMATION PIPELINE")
 
     # 1. Split videos
@@ -28,10 +31,13 @@ def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR):
                  output_dir=output_dir, max_silence_seconds=options.max_silence_seconds)
 
     # 4. Upload to YouTube
+    uploads = []
     if options.upload.enabled:
-        run_step("uploader", uploader.run, output_dir=output_dir, options=options.upload)
+        uploads = run_step("uploader", uploader.run,
+                           output_dir=output_dir, options=options.upload, interactive=interactive)
 
     print("\n✅ ALL STEPS COMPLETED SUCCESSFULLY")
+    return uploads or []
 
 
 if __name__ == "__main__":

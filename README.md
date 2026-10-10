@@ -7,7 +7,8 @@ Splits long videos into 60-second clips, converts them to vertical, burns in Ara
 ```
 backend/
   app/
-    main.py            # runs the full pipeline
+    main.py            # runs the full pipeline (CLI)
+    api/               # FastAPI app: jobs + YouTube connection
     core/config.py     # paths (data, secrets)
     schemas.py         # pipeline / caption options
     services/          # one module per pipeline step
@@ -16,6 +17,8 @@ backend/
       captions.py      # builds the .ass subtitle file
       cleaner.py
       uploader.py
+      jobs.py          # background jobs started from the API
+      youtube_auth.py  # OAuth client file + sign-in
   data/
     input/             # drop source videos here (git-ignored)
     output_splits/     # generated clips (git-ignored)
@@ -45,6 +48,32 @@ python -m app.main                 # full pipeline
 python -m app.services.splitter    # a single step
 python -m app.main --options options.json   # custom processing / caption settings
 ```
+
+## API
+
+From `backend/`:
+
+```bash
+uvicorn app.api.app:app --reload --port 8000
+```
+
+Interactive docs are at http://localhost:8000/docs.
+
+| Endpoint | What it does |
+| --- | --- |
+| `POST /api/jobs` | Upload a video (`file`) plus `options` (JSON string) and start processing |
+| `GET /api/jobs`, `GET /api/jobs/{id}` | Job status, log, produced clips and uploaded video IDs |
+| `GET /api/jobs/{id}/clips/{name}` | Stream a finished clip |
+| `DELETE /api/jobs/{id}` | Remove a finished job and its files |
+| `GET /api/options/defaults` | Default options |
+| `GET /api/youtube/status` | Whether a client file is stored and an account is connected |
+| `POST /api/youtube/client-secret` | Store the OAuth client file from Google Cloud |
+| `GET /api/youtube/connect` | Returns the Google sign-in URL |
+| `DELETE /api/youtube/connection` | Forget the connected account |
+
+Jobs run one at a time and live in `backend/data/jobs/<id>/`.
+
+Google redirects back to `http://localhost:8000/api/youtube/oauth/callback`. Desktop-type OAuth clients accept this as is; for a Web-type client, add it under "Authorized redirect URIs" in Google Cloud Console. Set `API_BASE_URL` if the API runs somewhere else.
 
 ## Options
 
