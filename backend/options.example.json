@@ -1,0 +1,29 @@
+{
+  "clip_seconds": 60,
+  "vertical": true,
+  "remove_silent": true,
+  "max_silence_seconds": 5.0,
+  "captions": {
+    "enabled": true,
+    "language": "ar",
+    "model": "base",
+    "max_words": null,
+    "font_name": "Arial Unicode MS",
+    "font_size": 12,
+    "bold": false,
+    "italic": false,
+    "uppercase": false,
+    "colors": [
+      "#FFFF00",
+      "#FF7F00",
+      "#FFFFFF"
+    ],
+    "outline_color": "#000000",
+    "outline_width": 2,
+    "shadow": 0,
+    "background": false,
+    "background_color": "#000000",
+    "position": "bottom",
+    "margin_v": 80
+  }
+}

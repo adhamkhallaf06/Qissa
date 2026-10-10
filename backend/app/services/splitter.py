@@ -6,9 +6,9 @@ from app.core.config import INPUT_DIR, OUTPUT_DIR
 allowed_extensions = (".mp4", ".mov", ".mkv", ".avi", ".flv", ".webm", ".mpg", ".mpeg", ".3gp")
 
 
-def run():
-    input_folder = str(INPUT_DIR)
-    output_folder = str(OUTPUT_DIR)
+def run(input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, clip_seconds=60):
+    input_folder = str(input_dir)
+    output_folder = str(output_dir)
 
     if not os.path.exists(input_folder):
         print(f"Input folder '{input_folder}' not found.")
@@ -43,7 +43,7 @@ def run():
             f'-c:v libx264 -preset veryfast -crf 23 '
             f'-force_key_frames "expr:gte(t,n_forced*1)" '
             f'-c:a aac -b:a 128k '
-            f'-f segment -segment_time 60 -reset_timestamps 1 '
+            f'-f segment -segment_time {clip_seconds} -reset_timestamps 1 '
             f'"{split_pattern}"'
         )
         print(f"Running:\n{split_command}\n")

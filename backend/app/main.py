@@ -1,22 +1,31 @@
+import argparse
+
+from app.core.config import INPUT_DIR, OUTPUT_DIR
+from app.schemas import PipelineOptions
 from app.services import cleaner, processor, splitter, uploader
 
 
-def run_step(name, step):
+def run_step(name, step, **kwargs):
     print(f"\n🔹 Running {name}...")
-    step()
+    step(**kwargs)
 
 
-def run_pipeline():
+def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR):
+    options = options or PipelineOptions()
     print("✅ STARTING FULL AUTOMATION PIPELINE")
 
     # 1. Split videos
-    run_step("splitter", splitter.run)
+    run_step("splitter", splitter.run,
+             input_dir=input_dir, output_dir=output_dir, clip_seconds=options.clip_seconds)
 
     # 2. Convert to vertical, transcribe, burn subtitles
-    run_step("processor", processor.run)
+    run_step("processor", processor.run,
+             output_dir=output_dir, captions=options.captions, vertical=options.vertical)
 
-    # 3. Delete clips that have >5 sec silence
-    run_step("cleaner", cleaner.run)
+    # 3. Delete clips that have too much silence
+    if options.remove_silent:
+        run_step("cleaner", cleaner.run,
+                 output_dir=output_dir, max_silence_seconds=options.max_silence_seconds)
 
     # 4. Upload to YouTube
     run_step("uploader", uploader.run)
@@ -25,4 +34,12 @@ def run_pipeline():
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    parser = argparse.ArgumentParser(description="Run the full Shorts pipeline")
+    parser.add_argument("--options", help="path to a JSON file of pipeline options (see options.example.json)")
+    args = parser.parse_args()
+
+    options = None
+    if args.options:
+        with open(args.options, encoding="utf-8") as f:
+            options = PipelineOptions.model_validate_json(f.read())
+    run_pipeline(options)

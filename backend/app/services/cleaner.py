@@ -4,8 +4,8 @@ import subprocess
 from app.core.config import OUTPUT_DIR
 
 
-def run():
-    folder = str(OUTPUT_DIR)
+def run(output_dir=OUTPUT_DIR, max_silence_seconds=5.0):
+    folder = str(output_dir)
 
     if not os.path.exists(folder):
         print(f"Folder '{folder}' not found.")
@@ -55,8 +55,8 @@ def run():
 
         print(f"{clip}: total silence = {total_silence:.1f} seconds")
 
-        if total_silence > 5.0:
-            print(f"❌ Deleting {clip}: silence exceeds 5 seconds.")
+        if total_silence > max_silence_seconds:
+            print(f"❌ Deleting {clip}: silence exceeds {max_silence_seconds:g} seconds.")
             os.remove(clip_path)
         else:
             print(f"✅ Keeping {clip}: acceptable audio.")
