@@ -7,6 +7,7 @@ dependencies = [
     "openai-whisper",
     "google-api-python-client",
     "google-auth-oauthlib",
+    "pydantic>=2",
 ]
 
 [build-system]

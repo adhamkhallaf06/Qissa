@@ -9,9 +9,11 @@ backend/
   app/
     main.py            # runs the full pipeline
     core/config.py     # paths (data, secrets)
+    schemas.py         # pipeline / caption options
     services/          # one module per pipeline step
       splitter.py
       processor.py
+      captions.py      # builds the .ass subtitle file
       cleaner.py
       uploader.py
   data/
@@ -41,4 +43,14 @@ From `backend/`:
 ```bash
 python -m app.main                 # full pipeline
 python -m app.services.splitter    # a single step
+python -m app.main --options options.json   # custom processing / caption settings
 ```
+
+## Options
+
+Copy `backend/options.example.json` and change what you need. Everything is optional; the defaults reproduce the original look.
+
+- `clip_seconds`, `vertical`, `remove_silent`, `max_silence_seconds` control the processing steps.
+- `captions.enabled` turns subtitles off entirely (Whisper is not loaded).
+- `captions.language` (`null` = auto-detect), `captions.model`, and `captions.max_words` (words shown at once) control transcription.
+- `captions.font_name`, `font_size`, `bold`, `italic`, `uppercase`, `colors` (cycled per caption), `outline_color`, `outline_width`, `shadow`, `background`, `background_color`, `position` (`top` / `middle` / `bottom`) and `margin_v` control the look.
