@@ -1,0 +1,17 @@
+[project]
+name = "youtube-shorts-automation"
+version = "0.1.0"
+description = "Split long videos into subtitled vertical clips and schedule them as YouTube Shorts"
+requires-python = ">=3.9"
+dependencies = [
+    "openai-whisper",
+    "google-api-python-client",
+    "google-auth-oauthlib",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
