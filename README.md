@@ -33,7 +33,7 @@ frontend/              # React + Vite web UI
     api.ts             # typed client for the backend API
     App.tsx            # routes
     auth.tsx           # logged-in user context
-    pages/             # AuthPage (login / sign-up), Studio (the upload workflow)
+    pages/             # Home (landing), AuthPage (login / sign-up), Studio (the upload workflow)
     components/
 ```
 
@@ -110,7 +110,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173, create an account (or log in), then pick a video, set the title and hashtags, style the captions, choose when clips go public, connect YouTube (upload `client_secret.json`, then sign in), and press **Create Shorts**. Progress, finished clips and uploaded video links appear under "Your videos".
+Open http://localhost:5173 for the home page, create an account (or log in), then in the studio pick a video, set the title and hashtags, style the captions, choose when clips go public, connect YouTube (upload `client_secret.json`, then sign in), and press **Create Shorts**. Progress, finished clips and uploaded video links appear under "Your videos".
 
 The dev server proxies `/api` to `http://localhost:8000`.
 

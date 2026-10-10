@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
 
 export function Brand() {
@@ -22,6 +22,7 @@ export function Layout() {
             <div className="row">
               {user ? (
                 <>
+                  <NavLink to="/app" className="nav-link">Studio</NavLink>
                   <span className="hint user-name" title={user.email}>{user.name}</span>
                   <button type="button" className="btn ghost small" onClick={logout}>Log out</button>
                 </>

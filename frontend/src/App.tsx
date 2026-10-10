@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth'
 import { Layout } from './components/Layout'
 import { AuthPage } from './pages/AuthPage'
+import { Home } from './pages/Home'
 import { Studio } from './pages/Studio'
 
 function Loading() {
@@ -30,7 +31,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/app" replace />} />
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
         <Route path="/signup" element={<GuestOnly><AuthPage mode="signup" /></GuestOnly>} />
         <Route path="/app" element={<RequireAuth><Studio /></RequireAuth>} />
