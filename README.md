@@ -24,7 +24,11 @@ backend/
     output_splits/     # generated clips (git-ignored)
   secrets/             # client_secret.json, token.pickle (git-ignored)
   pyproject.toml
-frontend/              # web UI (not built yet)
+frontend/              # React + Vite web UI
+  src/
+    api.ts             # typed client for the backend API
+    App.tsx
+    components/
 ```
 
 ## Backend setup
@@ -74,6 +78,20 @@ Interactive docs are at http://localhost:8000/docs.
 Jobs run one at a time and live in `backend/data/jobs/<id>/`.
 
 Google redirects back to `http://localhost:8000/api/youtube/oauth/callback`. Desktop-type OAuth clients accept this as is; for a Web-type client, add it under "Authorized redirect URIs" in Google Cloud Console. Set `API_BASE_URL` if the API runs somewhere else.
+
+## Web UI
+
+With the API running, in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. Pick a video, set the title and hashtags, style the captions, choose when clips go public, connect YouTube (upload `client_secret.json`, then sign in), and press **Create Shorts**. Progress, finished clips and uploaded video links appear under "Your videos".
+
+The dev server proxies `/api` to `http://localhost:8000`.
 
 ## Options
 
