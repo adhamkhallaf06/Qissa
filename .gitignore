@@ -1,9 +1,33 @@
-output_splits
+# --- Secrets ---
+backend/secrets/*
+!backend/secrets/.gitkeep
+.env
+.env.*
+!.env.example
 
-input
+# --- Media (inputs and generated clips) ---
+backend/data/input/*
+backend/data/output_splits/*
+!backend/data/**/.gitkeep
 
-client_secret.json
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
 
-token.pickle
+# --- Frontend ---
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
 
-.gitattributes
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
