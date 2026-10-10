@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from app.core.config import JOBS_DIR
 from app.main import run_pipeline
 from app.schemas import PipelineOptions
+from app.services import youtube_auth
 
 # Pipeline step -> job status shown in the UI
 STEP_STATUS = {
@@ -57,21 +58,24 @@ def _clips(job_id):
     return sorted(p.name for p in folder.iterdir() if p.name.endswith("_final.mp4"))
 
 
-def get(job_id):
+def get(job_id, user_id=None):
+    """The job, or None if it does not exist or belongs to someone else."""
     path = _state_path(job_id)
     # job_id comes from the URL: only accept ids we generated
     if not job_id.isalnum() or not path.exists():
         return None
     with _lock:
         job = json.loads(path.read_text(encoding="utf-8"))
+    if user_id is not None and job.get("user_id") != user_id:
+        return None
     job["clips"] = _clips(job_id)
     return job
 
 
-def list_all():
+def list_all(user_id=None):
     if not JOBS_DIR.exists():
         return []
-    jobs = [get(p.name) for p in JOBS_DIR.iterdir() if p.is_dir()]
+    jobs = [get(p.name, user_id) for p in JOBS_DIR.iterdir() if p.is_dir()]
     return sorted((j for j in jobs if j), key=lambda j: j["created_at"], reverse=True)
 
 
@@ -82,9 +86,10 @@ def new_id():
     return job_id
 
 
-def start(job_id, filename, options: PipelineOptions):
+def start(job_id, filename, options: PipelineOptions, user_id):
     job = {
         "id": job_id,
+        "user_id": user_id,
         "filename": filename,
         "status": "queued",
         "error": None,
@@ -98,8 +103,8 @@ def start(job_id, filename, options: PipelineOptions):
     return get(job_id)
 
 
-def delete(job_id):
-    job = get(job_id)
+def delete(job_id, user_id):
+    job = get(job_id, user_id)
     if job is None:
         return False
     if job["status"] in ACTIVE:
@@ -151,6 +156,10 @@ def _run(job, options):
                 output_dir=output_dir(job["id"]),
                 on_step=on_step,
                 interactive=False,
+                uploader_kwargs={
+                    "client_secrets_file": youtube_auth.client_file(job["user_id"]),
+                    "token_path": youtube_auth.token_file(job["user_id"]),
+                },
             )
         job["status"] = "done"
     except Exception as exc:

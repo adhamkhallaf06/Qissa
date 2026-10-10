@@ -1,3 +1,9 @@
+export interface User {
+  id: string
+  email: string
+  name: string
+}
+
 export interface CaptionOptions {
   enabled: boolean
   language: string | null
@@ -86,6 +92,17 @@ async function errorMessage(response: Response) {
   return `Request failed (${response.status})`
 }
 
+let onUnauthorized = () => {}
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler
+}
+
+const json = (body: unknown): RequestInit => ({
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+})
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -93,11 +110,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new Error('Cannot reach the backend. Is it running on port 8000?')
   }
+  // An expired session anywhere sends the user back to the login page
+  if (response.status === 401 && !path.startsWith('/api/auth/')) onUnauthorized()
   if (!response.ok) throw new Error(await errorMessage(response))
   return response.status === 204 ? (undefined as T) : response.json()
 }
 
 export const api = {
+  me: () => request<User>('/api/auth/me'),
+  signup: (name: string, email: string, password: string) =>
+    request<User>('/api/auth/signup', json({ name, email, password })),
+  login: (email: string, password: string) => request<User>('/api/auth/login', json({ email, password })),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+
   defaults: () => request<PipelineOptions>('/api/options/defaults'),
   jobs: () => request<Job[]>('/api/jobs'),
   deleteJob: (id: string) => request<void>(`/api/jobs/${id}`, { method: 'DELETE' }),
@@ -131,6 +156,7 @@ export const api = {
           // not JSON
         }
         if (xhr.status >= 200 && xhr.status < 300) return resolve(parsed as Job)
+        if (xhr.status === 401) onUnauthorized()
         const detail = (parsed as { detail?: unknown } | null)?.detail
         reject(new Error(typeof detail === 'string' ? detail : `Upload failed (${xhr.status})`))
       }

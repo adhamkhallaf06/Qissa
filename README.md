@@ -10,8 +10,9 @@ Splits long videos into 60-second clips, converts them to vertical, burns in Ara
 backend/
   app/
     main.py            # runs the full pipeline (CLI)
-    api/               # FastAPI app: jobs + YouTube connection
+    api/               # FastAPI app: accounts, jobs, YouTube connection
     core/config.py     # paths (data, secrets)
+    core/db.py         # SQLite (users, sessions)
     schemas.py         # pipeline / caption options
     services/          # one module per pipeline step
       splitter.py
@@ -19,6 +20,7 @@ backend/
       captions.py      # builds the .ass subtitle file
       cleaner.py
       uploader.py
+      auth.py          # password hashing, users, sessions
       jobs.py          # background jobs started from the API
       youtube_auth.py  # OAuth client file + sign-in
   data/
@@ -29,7 +31,9 @@ backend/
 frontend/              # React + Vite web UI
   src/
     api.ts             # typed client for the backend API
-    App.tsx
+    App.tsx            # routes
+    auth.tsx           # logged-in user context
+    pages/             # Home (landing), ConnectGuide (YouTube setup help), AuthPage (login / sign-up), Studio (the upload workflow)
     components/
 ```
 
@@ -79,6 +83,21 @@ Interactive docs are at http://localhost:8000/docs.
 
 Jobs run one at a time and live in `backend/data/jobs/<id>/`.
 
+### Accounts
+
+Everything except `/api/options/defaults` and `/api/health` needs a logged-in user.
+
+| Endpoint | What it does |
+| --- | --- |
+| `POST /api/auth/signup` | Create an account (`name`, `email`, `password` of 8+ characters) and log in |
+| `POST /api/auth/login` | Log in; five wrong passwords for an email lock it for 15 minutes |
+| `POST /api/auth/logout` | End the session |
+| `GET /api/auth/me` | The current user |
+
+Users live in SQLite at `backend/data/app.db`. Passwords are hashed with scrypt; the session is an HttpOnly cookie valid for 30 days, and only its hash is stored. Set `COOKIE_SECURE=1` when serving over HTTPS.
+
+Each user only sees their own jobs and clips, and connects their own YouTube channel (token in `backend/secrets/users/<id>/`). `backend/secrets/client_secret.json` is the app-wide OAuth client that every user signs in through unless they upload their own.
+
 Google redirects back to `http://localhost:8000/api/youtube/oauth/callback`. Desktop-type OAuth clients accept this as is; for a Web-type client, add it under "Authorized redirect URIs" in Google Cloud Console. Set `API_BASE_URL` if the API runs somewhere else.
 
 ## Web UI
@@ -91,7 +110,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Pick a video, set the title and hashtags, style the captions, choose when clips go public, connect YouTube (upload `client_secret.json`, then sign in), and press **Create Shorts**. Progress, finished clips and uploaded video links appear under "Your videos".
+Open http://localhost:5173 for the home page, create an account (or log in), then in the studio pick a video, set the title and hashtags, style the captions, choose when clips go public, connect YouTube (upload `client_secret.json`, then sign in), and press **Create Shorts**. Progress, finished clips and uploaded video links appear under "Your videos".
 
 The dev server proxies `/api` to `http://localhost:8000`.
 

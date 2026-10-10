@@ -9,6 +9,7 @@ backend/secrets/*
 backend/data/input/*
 backend/data/output_splits/*
 backend/data/jobs/
+backend/data/*.db
 !backend/data/**/.gitkeep
 
 # --- Python ---
