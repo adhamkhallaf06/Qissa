@@ -1,8 +1,9 @@
 import html
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 
+from app.api.auth import current_user
 from app.services import youtube_auth
 
 router = APIRouter(prefix="/api/youtube", tags=["youtube"])
@@ -19,26 +20,26 @@ def _page(title, message):
 
 
 @router.get("/status")
-def get_status():
-    return youtube_auth.status()
+def get_status(user=Depends(current_user)):
+    return youtube_auth.status(user["id"])
 
 
 @router.post("/client-secret")
-async def upload_client_secret(file: UploadFile):
+async def upload_client_secret(file: UploadFile, user=Depends(current_user)):
     raw = await file.read(MAX_SECRET_BYTES + 1)
     if len(raw) > MAX_SECRET_BYTES:
         raise HTTPException(400, "That file is too large to be a client_secret.json.")
     try:
-        youtube_auth.save_client_secret(raw)
+        youtube_auth.save_client_secret(user["id"], raw)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    return youtube_auth.status()
+    return youtube_auth.status(user["id"])
 
 
 @router.get("/connect")
-def connect():
+def connect(user=Depends(current_user)):
     try:
-        return {"auth_url": youtube_auth.authorization_url()}
+        return {"auth_url": youtube_auth.authorization_url(user["id"])}
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -55,6 +56,6 @@ def oauth_callback(state: str = "", code: str = "", error: str = ""):
 
 
 @router.delete("/connection")
-def disconnect():
-    youtube_auth.disconnect()
-    return youtube_auth.status()
+def disconnect(user=Depends(current_user)):
+    youtube_auth.disconnect(user["id"])
+    return youtube_auth.status(user["id"])

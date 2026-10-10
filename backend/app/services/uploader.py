@@ -61,50 +61,51 @@ def publish_times(schedule, count, now=None):
     return times
 
 
-def load_credentials():
+def load_credentials(token_path=TOKEN_PICKLE):
     """Saved YouTube credentials, refreshed if needed. None if not connected yet."""
     import google.auth.transport.requests
 
-    if not os.path.exists(TOKEN_PICKLE):
+    if not os.path.exists(token_path):
         return None
-    with open(TOKEN_PICKLE, "rb") as token:
+    with open(token_path, "rb") as token:
         credentials = pickle.load(token)
 
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(google.auth.transport.requests.Request())
-        save_credentials(credentials)
+        save_credentials(credentials, token_path)
     return credentials if credentials and credentials.valid else None
 
 
-def save_credentials(credentials):
-    with open(TOKEN_PICKLE, "wb") as token:
+def save_credentials(credentials, token_path=TOKEN_PICKLE):
+    with open(token_path, "wb") as token:
         pickle.dump(credentials, token)
 
 
-def get_youtube_client(interactive=True):
+def get_youtube_client(interactive=True, client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE):
     import google_auth_oauthlib.flow
     import googleapiclient.discovery
 
     # --- Authenticate ---
-    credentials = load_credentials()
+    credentials = load_credentials(token_path)
     if not credentials:
         if not interactive:
             raise RuntimeError("YouTube is not connected.")
         flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-            str(CLIENT_SECRETS_FILE), SCOPES
+            str(client_secrets_file), SCOPES
         )
         credentials = flow.run_local_server(port=8080)
-        save_credentials(credentials)
+        save_credentials(credentials, token_path)
 
     return googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
 
 
-def run(output_dir=OUTPUT_DIR, options=None, interactive=True):
+def run(output_dir=OUTPUT_DIR, options=None, interactive=True,
+        client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE):
     """Upload every *_final.mp4 in output_dir. Returns the uploaded videos."""
     output_folder = str(output_dir)
     options = options or UploadOptions()
 
-    youtube = get_youtube_client(interactive=interactive)
+    youtube = get_youtube_client(interactive, client_secrets_file, token_path)
 
     # --- Process ---
     video_files = sorted([f for f in os.listdir(output_folder) if f.endswith("_final.mp4")])

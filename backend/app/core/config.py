@@ -18,3 +18,10 @@ TOKEN_PICKLE = SECRETS_DIR / "token.pickle"
 JOBS_DIR = DATA_DIR / "jobs"  # one folder per job started from the web UI
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 FRONTEND_ORIGINS = os.environ.get("FRONTEND_ORIGINS", "http://localhost:5173").split(",")
+
+# --- Accounts ---
+DB_PATH = DATA_DIR / "app.db"
+USER_SECRETS_DIR = SECRETS_DIR / "users"  # per-user YouTube client file + token
+SESSION_COOKIE = "session"
+SESSION_DAYS = 30
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "0") == "1"  # set to 1 when served over HTTPS

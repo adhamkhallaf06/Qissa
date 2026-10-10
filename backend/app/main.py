@@ -5,7 +5,8 @@ from app.schemas import PipelineOptions
 from app.services import cleaner, processor, splitter, uploader
 
 
-def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_step=None, interactive=True):
+def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_step=None, interactive=True,
+                 uploader_kwargs=None):
     """Run every enabled step. Returns the list of uploaded videos."""
     options = options or PipelineOptions()
 
@@ -34,7 +35,8 @@ def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_st
     uploads = []
     if options.upload.enabled:
         uploads = run_step("uploader", uploader.run,
-                           output_dir=output_dir, options=options.upload, interactive=interactive)
+                           output_dir=output_dir, options=options.upload, interactive=interactive,
+                           **(uploader_kwargs or {}))
 
     print("\n✅ ALL STEPS COMPLETED SUCCESSFULLY")
     return uploads or []
