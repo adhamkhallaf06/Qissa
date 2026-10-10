@@ -1,129 +1,160 @@
 import os
 import pickle
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.core.config import CLIENT_SECRETS_FILE, OUTPUT_DIR, TOKEN_PICKLE
-
-tz = ZoneInfo("Africa/Cairo")
+from app.schemas import UploadOptions
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CATEGORY_ID = "22"
-
-daily_time_slots = [9, 0, 16, 20, 23]
+TITLE_LIMIT = 100  # YouTube's maximum title length
 
 
 def safe_title(text):
-    cleaned = "".join(c if c.isprintable() else "" for c in text).strip()
+    cleaned = "".join(c if c.isprintable() else "" for c in text)
+    cleaned = cleaned.replace("<", "").replace(">", "").strip()
     return cleaned if cleaned else "Untitled Clip"
 
 
-def get_youtube_client():
+def build_metadata(options: UploadOptions, index=0, total=1):
+    """Title, description and tags for clip number `index` out of `total`."""
+    title = options.title.strip()
+    if options.number_clips and total > 1:
+        title = f"{title} - Part {index + 1}".strip(" -") if title else f"Part {index + 1}"
+
+    if options.hashtags_in_title:
+        # Add as many hashtags as fit in the title
+        for tag in options.hashtags:
+            candidate = f"{title} {tag}".strip()
+            if len(candidate) > TITLE_LIMIT:
+                break
+            title = candidate
+
+    tag_line = " ".join(dict.fromkeys(options.hashtags + ["#Shorts"]))
+    description = "\n\n".join(part for part in (options.description.strip(), tag_line) if part)
+    tags = list(dict.fromkeys([tag.lstrip("#") for tag in options.hashtags] + ["Shorts"]))
+
+    return {
+        "title": safe_title(title)[:TITLE_LIMIT],
+        "description": description,
+        "tags": tags,
+        "categoryId": options.category_id,
+    }
+
+
+def publish_times(schedule, count, now=None):
+    """Publish datetime (in the schedule's timezone) for each of `count` clips."""
+    tz = ZoneInfo(schedule.timezone)
+    now = now or datetime.now(tz)
+    start_date = schedule.start_date or now.date() + timedelta(days=1)
+
+    times = []
+    for i in range(count):
+        day_offset = i // len(schedule.time_slots)
+        hour, minute = map(int, schedule.time_slots[i % len(schedule.time_slots)].split(":"))
+        publish_datetime = datetime.combine(start_date + timedelta(days=day_offset), time(hour, minute), tzinfo=tz)
+
+        # Ensure it's at least 15 minutes from now
+        if publish_datetime < now + timedelta(minutes=15):
+            publish_datetime = (now + timedelta(minutes=15)).replace(microsecond=0)
+        times.append(publish_datetime)
+    return times
+
+
+def load_credentials():
+    """Saved YouTube credentials, refreshed if needed. None if not connected yet."""
     import google.auth.transport.requests
+
+    if not os.path.exists(TOKEN_PICKLE):
+        return None
+    with open(TOKEN_PICKLE, "rb") as token:
+        credentials = pickle.load(token)
+
+    if credentials and credentials.expired and credentials.refresh_token:
+        credentials.refresh(google.auth.transport.requests.Request())
+        save_credentials(credentials)
+    return credentials if credentials and credentials.valid else None
+
+
+def save_credentials(credentials):
+    with open(TOKEN_PICKLE, "wb") as token:
+        pickle.dump(credentials, token)
+
+
+def get_youtube_client(interactive=True):
     import google_auth_oauthlib.flow
     import googleapiclient.discovery
 
     # --- Authenticate ---
-    credentials = None
-    if os.path.exists(TOKEN_PICKLE):
-        with open(TOKEN_PICKLE, "rb") as token:
-            credentials = pickle.load(token)
-
-    if not credentials or not credentials.valid:
-        if credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(google.auth.transport.requests.Request())
-        else:
-            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-                str(CLIENT_SECRETS_FILE), SCOPES
-            )
-            credentials = flow.run_local_server(port=8080)
-        with open(TOKEN_PICKLE, "wb") as token:
-            pickle.dump(credentials, token)
+    credentials = load_credentials()
+    if not credentials:
+        if not interactive:
+            raise RuntimeError("YouTube is not connected.")
+        flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+            str(CLIENT_SECRETS_FILE), SCOPES
+        )
+        credentials = flow.run_local_server(port=8080)
+        save_credentials(credentials)
 
     return googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
 
 
-def run():
-    output_folder = str(OUTPUT_DIR)
+def run(output_dir=OUTPUT_DIR, options=None, interactive=True):
+    """Upload every *_final.mp4 in output_dir. Returns the uploaded videos."""
+    output_folder = str(output_dir)
+    options = options or UploadOptions()
 
-    youtube = get_youtube_client()
-
-    # Always start from tomorrow
-    schedule_start_date = datetime.now(tz).date() + timedelta(days=1)
+    youtube = get_youtube_client(interactive=interactive)
 
     # --- Process ---
     video_files = sorted([f for f in os.listdir(output_folder) if f.endswith("_final.mp4")])
     if not video_files:
         print("No *_final.mp4 files found.")
-        return
+        return []
 
-    video_counter = 0
+    schedule = options.schedule
+    times = publish_times(schedule, len(video_files)) if schedule.enabled else []
+    uploaded = []
 
-    for vid in video_files:
+    for index, vid in enumerate(video_files):
         video_path = os.path.join(output_folder, vid)
-        base_name = os.path.splitext(vid)[0]
+        snippet = build_metadata(options, index, len(video_files))
 
-        # Compute schedule
-        day_offset = video_counter // len(daily_time_slots)
-        slot_index = video_counter % len(daily_time_slots)
-        publish_date = schedule_start_date + timedelta(days=day_offset)
-        publish_hour = daily_time_slots[slot_index]
+        if schedule.enabled:
+            publish_datetime = times[index]
+            publish_iso = publish_datetime.astimezone(timezone.utc).isoformat()
+            # Scheduled videos must be private until publishAt
+            status = {"privacyStatus": "private", "publishAt": publish_iso}
 
-        # Create the datetime in Cairo timezone
-        publish_datetime = datetime(
-            publish_date.year,
-            publish_date.month,
-            publish_date.day,
-            publish_hour,
-            0,
-            tzinfo=tz
-        )
-
-        # Ensure it's at least 15 minutes from now
-        now = datetime.now(tz)
-        if publish_datetime < now + timedelta(minutes=15):
-            publish_datetime = now + timedelta(minutes=15)
-            publish_datetime = publish_datetime.replace(microsecond=0)
-
-        # Convert to UTC
-        publish_utc = publish_datetime.astimezone(timezone.utc)
-        publish_iso = publish_utc.isoformat()
-
-        # Print for clarity
-        print(f"\nLocal scheduled time: {publish_datetime.isoformat()}")
-        print(f"UTC scheduled time:   {publish_iso}")
+            # Print for clarity
+            print(f"\nLocal scheduled time: {publish_datetime.isoformat()}")
+            print(f"UTC scheduled time:   {publish_iso}")
+        else:
+            publish_iso = None
+            status = {"privacyStatus": options.privacy}
 
         # Upload
         request = youtube.videos().insert(
             part="snippet,status",
-            body={
-                "snippet": {
-                    "title": "#علم #العوامل #النظافه #اكسبلور #fypage #تاريخ #viralvideo #قصص #اهميه #film #سفر #قصص #رمضان",
-                    "description": "#Shorts",
-                    "tags": ["Shorts"],
-                    "categoryId": CATEGORY_ID
-                },
-                "status": {
-                    "privacyStatus": "private",
-                    "publishAt": publish_iso
-                }
-            },
+            body={"snippet": snippet, "status": status},
             media_body=video_path
         )
         response = request.execute()
         print(f"✅ Uploaded Video ID: {response['id']}")
+        uploaded.append({"file": vid, "video_id": response["id"], "title": snippet["title"], "publish_at": publish_iso})
 
-        video_counter += 1
+    print("\n✅ All videos uploaded" + (" and scheduled." if schedule.enabled else "."))
 
-    print("\n✅ All videos uploaded and scheduled.")
+    if options.delete_after_upload:
+        print("\n🧹 Cleaning up output folder...")
+        for f in os.listdir(output_folder):
+            file_path = os.path.join(output_folder, f)
+            if os.path.isfile(file_path) and f != ".gitkeep":
+                os.remove(file_path)
 
-    print("\n🧹 Cleaning up output folder...")
-    for f in os.listdir(output_folder):
-        file_path = os.path.join(output_folder, f)
-        if os.path.isfile(file_path) and f != ".gitkeep":
-            os.remove(file_path)
+        print("✅ All output files deleted.")
 
-    print("✅ All output files deleted.")
+    return uploaded
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
+from datetime import date
 from typing import List, Literal, Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -50,6 +52,61 @@ class CaptionOptions(BaseModel):
         return name.replace(",", " ").strip() or "Arial Unicode MS"
 
 
+class ScheduleOptions(BaseModel):
+    """When clips go public. One clip per time slot, rolling over to the next day."""
+
+    enabled: bool = True  # False = publish as soon as the upload finishes
+    timezone: str = "Africa/Cairo"
+    start_date: Optional[date] = None  # None = tomorrow
+    time_slots: List[str] = Field(default=["09:00", "00:00", "16:00", "20:00", "23:00"], min_length=1)
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, name):
+        try:
+            ZoneInfo(name)
+        except Exception:
+            raise ValueError(f"'{name}' is not a known timezone")
+        return name
+
+    @field_validator("time_slots")
+    @classmethod
+    def _check_slots(cls, slots):
+        import re
+        for slot in slots:
+            if not re.match(r"^([01]\d|2[0-3]):[0-5]\d$", slot):
+                raise ValueError(f"'{slot}' is not a HH:MM time")
+        return slots
+
+
+class UploadOptions(BaseModel):
+    """What gets sent to YouTube with each clip."""
+
+    enabled: bool = True
+    title: str = ""
+    description: str = ""
+    hashtags: List[str] = Field(default=[
+        "#علم", "#العوامل", "#النظافه", "#اكسبلور", "#fypage", "#تاريخ", "#viralvideo",
+        "#قصص", "#اهميه", "#film", "#سفر", "#قصص", "#رمضان",
+    ])
+    hashtags_in_title: bool = True
+    number_clips: bool = False  # append "Part N" when a video yields several clips
+    category_id: str = "22"
+    privacy: Literal["private", "unlisted", "public"] = "private"  # used when not scheduled
+    schedule: ScheduleOptions = Field(default_factory=ScheduleOptions)
+    delete_after_upload: bool = True
+
+    @field_validator("hashtags")
+    @classmethod
+    def _clean_hashtags(cls, hashtags):
+        cleaned = []
+        for tag in hashtags:
+            tag = "".join(tag.split()).lstrip("#")
+            if tag:
+                cleaned.append(f"#{tag}")
+        return cleaned
+
+
 class PipelineOptions(BaseModel):
     """Which processing steps run and how."""
 
@@ -58,3 +115,4 @@ class PipelineOptions(BaseModel):
     remove_silent: bool = True
     max_silence_seconds: float = Field(5.0, ge=0)
     captions: CaptionOptions = Field(default_factory=CaptionOptions)
+    upload: UploadOptions = Field(default_factory=UploadOptions)

@@ -8,6 +8,7 @@ backend/secrets/*
 # --- Media (inputs and generated clips) ---
 backend/data/input/*
 backend/data/output_splits/*
+backend/data/jobs/
 !backend/data/**/.gitkeep
 
 # --- Python ---
