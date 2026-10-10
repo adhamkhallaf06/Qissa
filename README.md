@@ -33,7 +33,7 @@ frontend/              # React + Vite web UI
     api.ts             # typed client for the backend API
     App.tsx            # routes
     auth.tsx           # logged-in user context
-    pages/             # Home (landing), AuthPage (login / sign-up), Studio (the upload workflow)
+    pages/             # Home (landing), ConnectGuide (YouTube setup help), AuthPage (login / sign-up), Studio (the upload workflow)
     components/
 ```
 

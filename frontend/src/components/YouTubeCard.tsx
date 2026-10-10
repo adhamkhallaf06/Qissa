@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, type YouTubeStatus } from '../api'
 import { Card } from './ui'
 
@@ -64,7 +65,8 @@ export function YouTubeCard({ status, onStatus }: {
             <div>
               <strong>Add your Google OAuth client file</strong>
               <p className="hint">
-                The <code>client_secret.json</code> from Google Cloud Console → APIs &amp; Services → Credentials, with the YouTube Data API v3 enabled. It stays on the machine running the backend.
+                The <code>client_secret.json</code> from Google Cloud Console → APIs &amp; Services → Credentials, with the YouTube Data API v3 enabled. It stays on the machine running the backend.{' '}
+                <Link to="/guide/connect-youtube" target="_blank">Step-by-step guide</Link>
               </p>
             </div>
             <button type="button" className="btn" onClick={() => input.current?.click()}>

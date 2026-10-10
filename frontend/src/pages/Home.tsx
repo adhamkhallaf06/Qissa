@@ -88,6 +88,7 @@ export function Home() {
         <h2>One video in. A week of Shorts out.</h2>
         <p className="lead">You bring the story and your YouTube channel. Qissa does the cutting.</p>
         {cta}
+        <Link to="/guide/connect-youtube">How to connect your YouTube channel</Link>
       </section>
     </main>
   )

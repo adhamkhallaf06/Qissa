@@ -162,6 +162,17 @@ input[type='color'] { width: 36px; height: 32px; padding: 2px; border: 1px solid
 .nav-link { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; }
 .nav-link:hover, .nav-link.active { color: var(--text); }
 
+/* --- Guide --- */
+.guide h2 { font-size: 17px; }
+.guide p { max-width: 68ch; }
+.note { display: flex; flex-direction: column; gap: 4px; border-left: 3px solid var(--accent); }
+.guide-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.guide-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.guide code { overflow-wrap: anywhere; }
+.faq { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.faq dt { font-weight: 600; margin-top: 10px; }
+.faq dd { margin: 0; color: var(--muted); max-width: 68ch; }
+
 /* --- Home page --- */
 .home { max-width: 1080px; margin: 0 auto; padding: 0 16px 96px; }
 .home h2 { font-size: 28px; letter-spacing: -0.02em; margin-bottom: 24px; }

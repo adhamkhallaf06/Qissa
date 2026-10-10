@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth'
 import { Layout } from './components/Layout'
 import { AuthPage } from './pages/AuthPage'
+import { ConnectGuide } from './pages/ConnectGuide'
 import { Home } from './pages/Home'
 import { Studio } from './pages/Studio'
 
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
         <Route path="/signup" element={<GuestOnly><AuthPage mode="signup" /></GuestOnly>} />
+        <Route path="/guide/connect-youtube" element={<ConnectGuide />} />
         <Route path="/app" element={<RequireAuth><Studio /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
