@@ -54,3 +54,6 @@ Copy `backend/options.example.json` and change what you need. Everything is opti
 - `captions.enabled` turns subtitles off entirely (Whisper is not loaded).
 - `captions.language` (`null` = auto-detect), `captions.model`, and `captions.max_words` (words shown at once) control transcription.
 - `captions.font_name`, `font_size`, `bold`, `italic`, `uppercase`, `colors` (cycled per caption), `outline_color`, `outline_width`, `shadow`, `background`, `background_color`, `position` (`top` / `middle` / `bottom`) and `margin_v` control the look.
+- `upload.title`, `description`, `hashtags`, `hashtags_in_title`, `number_clips`, `category_id` set what YouTube shows. Titles are trimmed to 100 characters.
+- `upload.schedule` picks when clips go public: `timezone`, `start_date` (`null` = tomorrow) and `time_slots` (`HH:MM`, one clip per slot, then the next day). Set `schedule.enabled` to `false` to publish right away with `upload.privacy`.
+- `upload.enabled: false` stops after processing; `delete_after_upload: false` keeps the clips.

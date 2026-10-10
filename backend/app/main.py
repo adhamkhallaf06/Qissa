@@ -28,7 +28,8 @@ def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR):
                  output_dir=output_dir, max_silence_seconds=options.max_silence_seconds)
 
     # 4. Upload to YouTube
-    run_step("uploader", uploader.run)
+    if options.upload.enabled:
+        run_step("uploader", uploader.run, output_dir=output_dir, options=options.upload)
 
     print("\n✅ ALL STEPS COMPLETED SUCCESSFULLY")
 
