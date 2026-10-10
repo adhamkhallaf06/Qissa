@@ -15,7 +15,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="YouTube Shorts Automation", lifespan=lifespan)
+app = FastAPI(title="Qissa", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

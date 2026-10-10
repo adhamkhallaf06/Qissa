@@ -1,4 +1,6 @@
-# YouTube Shorts Automation
+# Qissa
+
+**Long story, cut short.** *Qissa* (قصة) is Arabic for "story", from the same root as *qass*, "to cut".
 
 Splits long videos into 60-second clips, converts them to vertical, burns in Arabic subtitles (Whisper), drops clips with too much silence, and schedules the rest as YouTube Shorts.
 

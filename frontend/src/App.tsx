@@ -88,7 +88,8 @@ export default function App() {
   return (
     <main className="page">
       <header className="page-head">
-        <h1>Shorts Automation</h1>
+        <h1 className="brand">Qissa<span lang="ar" dir="rtl">قصة</span></h1>
+        <p className="tagline">Long story, cut short.</p>
         <p className="hint">Turn one long video into captioned, scheduled YouTube Shorts.</p>
       </header>
 
