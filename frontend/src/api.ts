@@ -44,12 +44,30 @@ export interface UploadOptions {
   delete_after_upload: boolean
 }
 
+export interface GradingOptions {
+  enabled: boolean
+  top_n: number
+}
+
+export interface GradingStatus {
+  available: boolean
+  model: string
+}
+
+export interface ClipGrade {
+  file: string
+  score: number | null
+  hook: string
+  reason: string
+}
+
 export interface PipelineOptions {
   clip_seconds: number
   vertical: boolean
   remove_silent: boolean
   max_silence_seconds: number
   captions: CaptionOptions
+  grading: GradingOptions
   upload: UploadOptions
 }
 
@@ -60,7 +78,7 @@ export interface YouTubeStatus {
 }
 
 export type JobStatus =
-  | 'queued' | 'splitting' | 'processing' | 'cleaning' | 'uploading' | 'done' | 'failed'
+  | 'queued' | 'downloading' | 'splitting' | 'processing' | 'cleaning' | 'grading' | 'uploading' | 'done' | 'failed'
 
 export interface UploadedVideo {
   file: string
@@ -72,11 +90,15 @@ export interface UploadedVideo {
 export interface Job {
   id: string
   filename: string
+  /** Set when the job was started from a YouTube link instead of a file */
+  source_url: string | null
   status: JobStatus
   error: string | null
   created_at: string
   options: PipelineOptions
   uploads: UploadedVideo[]
+  /** Best first. Missing on jobs from before grading existed. */
+  grades?: ClipGrade[]
   log: string[]
   clips: string[]
 }
@@ -128,6 +150,7 @@ export const api = {
   deleteJob: (id: string) => request<void>(`/api/jobs/${id}`, { method: 'DELETE' }),
   clipUrl: (jobId: string, name: string) => `/api/jobs/${jobId}/clips/${encodeURIComponent(name)}`,
 
+  gradingStatus: () => request<GradingStatus>('/api/grading/status'),
   youtubeStatus: () => request<YouTubeStatus>('/api/youtube/status'),
   youtubeConnect: () => request<{ auth_url: string }>('/api/youtube/connect'),
   youtubeDisconnect: () => request<YouTubeStatus>('/api/youtube/connection', { method: 'DELETE' }),
@@ -136,6 +159,9 @@ export const api = {
     body.append('file', file)
     return request<YouTubeStatus>('/api/youtube/client-secret', { method: 'POST', body })
   },
+
+  createJobFromLink: (url: string, options: PipelineOptions) =>
+    request<Job>('/api/jobs/from-link', json({ url, options })),
 
   /** Upload a video and start a job. XHR instead of fetch so we get upload progress. */
   createJob: (file: File, options: PipelineOptions, onProgress: (fraction: number) => void) =>

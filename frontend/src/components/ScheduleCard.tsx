@@ -23,7 +23,7 @@ export function ScheduleCard({ upload, onChange }: {
 
   return (
     <Card
-      step={4}
+      step={5}
       title="When to publish"
       aside={<Toggle checked={upload.enabled} onChange={(enabled) => onChange({ enabled })} label="Upload to YouTube" />}
     >

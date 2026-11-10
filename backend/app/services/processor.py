@@ -57,7 +57,8 @@ def run(output_dir=OUTPUT_DIR, captions=None, vertical=True):
         clip_input = os.path.join(output_folder, clip)
         clip_vertical = os.path.join(output_folder, f"{basename}_vertical.mp4")
         clip_final = os.path.join(output_folder, f"{basename}_final.mp4")
-        ass_name = f"{basename}.ass"
+        # Fixed name: the subtitles filter breaks on spaces, brackets or quotes in a file name
+        ass_name = "_captions.ass"
         ass_path = os.path.join(output_folder, ass_name)
 
         result = None
@@ -68,6 +69,11 @@ def run(output_dir=OUTPUT_DIR, captions=None, vertical=True):
                 language=captions.language,
                 word_timestamps=bool(captions.max_words),
             )
+            # Keep the text for the grader so it doesn't have to transcribe again
+            transcripts = os.path.join(output_folder, "transcripts")
+            os.makedirs(transcripts, exist_ok=True)
+            with open(os.path.join(transcripts, f"{basename}_final.txt"), "w", encoding="utf-8") as f:
+                f.write(result["text"].strip())
 
         # --- Determine resolution ---
         width, height = get_resolution(clip_input)

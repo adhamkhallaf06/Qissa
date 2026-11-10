@@ -2,7 +2,7 @@
 
 **Long story, cut short.** *Qissa* (قصة) is Arabic for "story", from the same root as *qass*, "to cut".
 
-Splits long videos into 60-second clips, converts them to vertical, burns in subtitles (Whisper), drops clips with too much silence, and schedules the rest as YouTube Shorts.
+Takes a long video (an uploaded file or a YouTube link), splits it into 60-second clips, converts them to vertical, burns in subtitles (Whisper), drops clips with too much silence, optionally has Claude grade each clip and keeps only the best, and schedules them as YouTube Shorts.
 
 ## Layout
 
@@ -15,10 +15,12 @@ backend/
     core/db.py         # SQLite (users, sessions)
     schemas.py         # pipeline / caption options
     services/          # one module per pipeline step
+      downloader.py    # fetches a video from a YouTube link (yt-dlp)
       splitter.py
       processor.py
       captions.py      # builds the .ass subtitle file
       cleaner.py
+      grader.py        # scores each clip with Claude (transcript + frames)
       uploader.py
       auth.py          # password hashing, users, sessions
       jobs.py          # background jobs started from the API
@@ -39,7 +41,7 @@ frontend/              # React + Vite web UI
 
 ## Backend setup
 
-Requires Python 3.9+ and `ffmpeg` on your PATH.
+Requires Python 3.9+ and `ffmpeg` on your PATH. For YouTube links, also install [deno](https://deno.com) (`brew install deno`). yt-dlp uses it to get past YouTube's download checks; without it, some video formats may be missing.
 
 ```bash
 cd backend
@@ -48,6 +50,8 @@ pip install -e .
 ```
 
 Put your Google OAuth client file at `backend/secrets/client_secret.json`.
+
+To grade clips and upload only the best ones, give the backend an Anthropic API key: either set `ANTHROPIC_API_KEY`, or paste the key into `backend/secrets/anthropic_api_key` (git-ignored). Restart the backend after adding it. Grading uses `claude-opus-5-5`: one request per clip with its transcript and 4 small frames.
 
 ## Running
 
@@ -72,10 +76,12 @@ Interactive docs are at http://localhost:8000/docs.
 | Endpoint | What it does |
 | --- | --- |
 | `POST /api/jobs` | Upload a video (`file`) plus `options` (JSON string) and start processing |
+| `POST /api/jobs/from-link` | JSON `{"url": "<YouTube link>", "options": {...}}`: download the video, then process it like an upload |
 | `GET /api/jobs`, `GET /api/jobs/{id}` | Job status, log, produced clips and uploaded video IDs |
 | `GET /api/jobs/{id}/clips/{name}` | Stream a finished clip |
 | `DELETE /api/jobs/{id}` | Remove a finished job and its files |
 | `GET /api/options/defaults` | Default options |
+| `GET /api/grading/status` | Whether an Anthropic API key is set up for grading |
 | `GET /api/youtube/status` | Whether a client file is stored and an account is connected |
 | `POST /api/youtube/client-secret` | Store the OAuth client file from Google Cloud |
 | `GET /api/youtube/connect` | Returns the Google sign-in URL |

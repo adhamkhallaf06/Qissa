@@ -10,13 +10,15 @@ from datetime import datetime, timezone
 from app.core.config import JOBS_DIR
 from app.main import run_pipeline
 from app.schemas import PipelineOptions
-from app.services import youtube_auth
+from app.services import downloader, youtube_auth
 
 # Pipeline step -> job status shown in the UI
 STEP_STATUS = {
+    "downloader": "downloading",
     "splitter": "splitting",
     "processor": "processing",
     "cleaner": "cleaning",
+    "grader": "grading",
     "uploader": "uploading",
 }
 ACTIVE = {"queued", *STEP_STATUS.values()}
@@ -86,16 +88,19 @@ def new_id():
     return job_id
 
 
-def start(job_id, filename, options: PipelineOptions, user_id):
+def start(job_id, filename, options: PipelineOptions, user_id, source_url=None):
+    """Queue a job. With source_url, the video is downloaded first and filename is just its title."""
     job = {
         "id": job_id,
         "user_id": user_id,
         "filename": filename,
+        "source_url": source_url,
         "status": "queued",
         "error": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "options": options.model_dump(mode="json"),
         "uploads": [],
+        "grades": [],
         "log": [],
     }
     _save(job)
@@ -148,14 +153,22 @@ def _run(job, options):
         job["status"] = STEP_STATUS[name]
         _save(job)
 
+    def on_grades(grades):
+        job["grades"] = grades
+        _save(job)
+
     try:
         with contextlib.redirect_stdout(_JobLog(job)):
+            if job.get("source_url"):
+                on_step("downloader")
+                downloader.download(job["source_url"], input_dir(job["id"]))
             job["uploads"] = run_pipeline(
                 options,
                 input_dir=input_dir(job["id"]),
                 output_dir=output_dir(job["id"]),
                 on_step=on_step,
                 interactive=False,
+                on_grades=on_grades,
                 uploader_kwargs={
                     "client_secrets_file": youtube_auth.client_file(job["user_id"]),
                     "token_path": youtube_auth.token_file(job["user_id"]),

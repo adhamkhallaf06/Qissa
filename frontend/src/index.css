@@ -75,7 +75,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field-label { font-size: 13px; font-weight: 600; }
 
-input[type='text'], input[type='email'], input[type='password'], input:not([type]), input[type='number'], input[type='date'], input[type='time'], select, textarea {
+input[type='text'], input[type='url'], input[type='email'], input[type='password'], input:not([type]), input[type='number'], input[type='date'], input[type='time'], select, textarea {
   font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0;
 }
@@ -104,6 +104,7 @@ input[type='color'] { width: 36px; height: 32px; padding: 2px; border: 1px solid
 .segmented.wide { display: flex; }
 .segmented button { flex: 1; font: inherit; color: var(--muted); background: var(--surface); border: 0; padding: 8px 12px; cursor: pointer; text-transform: capitalize; }
 .segmented button + button { border-left: 1px solid var(--border); }
+.segmented.plain button { text-transform: none; }
 .segmented button.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
@@ -122,6 +123,12 @@ input[type='color'] { width: 36px; height: 32px; padding: 2px; border: 1px solid
 .drop.dragging { border-color: var(--accent); background: var(--surface-2); }
 .drop.has-file { border-style: solid; flex-direction: row; justify-content: space-between; text-align: left; padding: 16px; flex-wrap: wrap; }
 .drop-file { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+
+.grades { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.grade { display: flex; gap: 14px; align-items: flex-start; }
+.grade video { width: 120px; aspect-ratio: 9 / 16; background: #000; border-radius: 8px; flex: none; }
+.grade-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.grade-text p { margin: 0; overflow-wrap: anywhere; }
 
 .title-preview { display: flex; flex-direction: column; gap: 4px; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
 
