@@ -97,6 +97,16 @@ export function Studio() {
     }
   }
 
+  const retryUpload = async (job: Job) => {
+    setSubmitError('')
+    try {
+      await api.retryUpload(job.id)
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+    refreshJobs()
+  }
+
   const deleteJob = async (job: Job) => {
     if (!window.confirm(`Delete "${job.filename}" and its clips from this computer?`)) return
     await api.deleteJob(job.id).catch((e) => setSubmitError((e as Error).message))
@@ -169,7 +179,7 @@ export function Studio() {
 
       <section id="jobs">
         <h2 className="section-title">Your videos</h2>
-        <JobsList jobs={jobs} onDelete={deleteJob} />
+        <JobsList jobs={jobs} onDelete={deleteJob} onRetry={retryUpload} />
       </section>
     </main>
   )

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from app.core.config import JOBS_DIR
 from app.main import run_pipeline
 from app.schemas import PipelineOptions
-from app.services import downloader, youtube_auth
+from app.services import downloader, uploader, youtube_auth
 
 # Pipeline step -> job status shown in the UI
 STEP_STATUS = {
@@ -118,6 +118,40 @@ def delete(job_id, user_id):
     return True
 
 
+def pending_uploads(job):
+    """Clips that should be on YouTube but aren't yet, in upload order (best first when graded)."""
+    options = job["options"]
+    done = {video["file"] for video in job["uploads"]}
+    clips = set(job["clips"])
+    grades = job.get("grades") or []
+    if options.get("grading", {}).get("enabled") and grades:
+        wanted = [g["file"] for g in grades if g["score"] is not None][:options["grading"]["top_n"]]
+    else:
+        wanted = sorted(clips)
+    return [f for f in wanted if f in clips and f not in done]
+
+
+def retry_upload(job_id, user_id):
+    """Upload a finished or failed job's remaining clips again, without re-processing. None if not found."""
+    job = get(job_id, user_id)
+    if job is None:
+        return None
+    if job["status"] in ACTIVE:
+        raise RuntimeError("This job is still running.")
+    if not job["options"]["upload"]["enabled"]:
+        raise RuntimeError("Uploading was turned off for this video.")
+    files = pending_uploads(job)
+    if not files:
+        raise RuntimeError("There are no clips left to upload.")
+
+    job.pop("clips", None)
+    job["status"] = "queued"
+    job["error"] = None
+    _save(job)
+    _executor.submit(_run_upload, job, files)
+    return get(job_id)
+
+
 def fail_interrupted():
     """Jobs left mid-run by a server restart can never finish; mark them failed."""
     for job in list_all():
@@ -148,6 +182,45 @@ class _JobLog:
         pass
 
 
+def _uploader_kwargs(job):
+    def on_upload(video):
+        job["uploads"].append(video)
+        _save(job)
+
+    return {
+        "client_secrets_file": youtube_auth.client_file(job["user_id"]),
+        "token_path": youtube_auth.token_file(job["user_id"]),
+        "on_upload": on_upload,
+    }
+
+
+def _finish(job, work):
+    """Run work() with its output in the job log, then record done or failed."""
+    try:
+        with contextlib.redirect_stdout(_JobLog(job)):
+            work()
+        job["status"] = "done"
+    except Exception as exc:
+        if not isinstance(exc, uploader.UploadError):
+            traceback.print_exc()
+        job["status"] = "failed"
+        job["error"] = str(exc) or exc.__class__.__name__
+    _save(job)
+
+
+def _run_upload(job, files):
+    def work():
+        print(f"\n🔁 Retrying upload of {len(files)} clip(s)")
+        job["status"] = STEP_STATUS["uploader"]
+        _save(job)
+        options = PipelineOptions.model_validate(job["options"])
+        taken = [video["publish_at"] for video in job["uploads"] if video["publish_at"]]
+        uploader.run(output_dir(job["id"]), options=options.upload, interactive=False,
+                     files=files, taken_times=taken, **_uploader_kwargs(job))
+
+    _finish(job, work)
+
+
 def _run(job, options):
     def on_step(name):
         job["status"] = STEP_STATUS[name]
@@ -157,26 +230,19 @@ def _run(job, options):
         job["grades"] = grades
         _save(job)
 
-    try:
-        with contextlib.redirect_stdout(_JobLog(job)):
-            if job.get("source_url"):
-                on_step("downloader")
-                downloader.download(job["source_url"], input_dir(job["id"]))
-            job["uploads"] = run_pipeline(
-                options,
-                input_dir=input_dir(job["id"]),
-                output_dir=output_dir(job["id"]),
-                on_step=on_step,
-                interactive=False,
-                on_grades=on_grades,
-                uploader_kwargs={
-                    "client_secrets_file": youtube_auth.client_file(job["user_id"]),
-                    "token_path": youtube_auth.token_file(job["user_id"]),
-                },
-            )
-        job["status"] = "done"
-    except Exception as exc:
-        traceback.print_exc()
-        job["status"] = "failed"
-        job["error"] = str(exc) or exc.__class__.__name__
-    _save(job)
+    def work():
+        if job.get("source_url"):
+            on_step("downloader")
+            downloader.download(job["source_url"], input_dir(job["id"]))
+        # Uploads are recorded one by one through on_upload, so they survive a failure part-way
+        run_pipeline(
+            options,
+            input_dir=input_dir(job["id"]),
+            output_dir=output_dir(job["id"]),
+            on_step=on_step,
+            interactive=False,
+            on_grades=on_grades,
+            uploader_kwargs=_uploader_kwargs(job),
+        )
+
+    _finish(job, work)

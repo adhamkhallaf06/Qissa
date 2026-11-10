@@ -147,6 +147,7 @@ export const api = {
 
   defaults: () => request<PipelineOptions>('/api/options/defaults'),
   jobs: () => request<Job[]>('/api/jobs'),
+  retryUpload: (id: string) => request<Job>(`/api/jobs/${id}/retry-upload`, { method: 'POST' }),
   deleteJob: (id: string) => request<void>(`/api/jobs/${id}`, { method: 'DELETE' }),
   clipUrl: (jobId: string, name: string) => `/api/jobs/${jobId}/clips/${encodeURIComponent(name)}`,
 

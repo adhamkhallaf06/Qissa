@@ -98,6 +98,20 @@ def delete_job(job_id: str, user=Depends(current_user)):
         raise HTTPException(409, str(exc))
 
 
+@router.post("/jobs/{job_id}/retry-upload")
+def retry_upload(job_id: str, user=Depends(current_user)):
+    """Upload a job's remaining clips again (e.g. after YouTube's upload limit resets)."""
+    if not youtube_auth.status(user["id"])["connected"]:
+        raise HTTPException(400, "Connect your YouTube account first.")
+    try:
+        job = jobs.retry_upload(job_id, user["id"])
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+    if job is None:
+        raise HTTPException(404, "Job not found.")
+    return job
+
+
 @router.get("/jobs/{job_id}/clips/{name}")
 def get_clip(job_id: str, name: str, user=Depends(current_user)):
     job = jobs.get(job_id, user["id"])
