@@ -51,7 +51,7 @@ pip install -e .
 
 Put your Google OAuth client file at `backend/secrets/client_secret.json`.
 
-To grade clips and upload only the best ones, give the backend an Anthropic API key: either set `ANTHROPIC_API_KEY`, or paste the key into `backend/secrets/anthropic_api_key` (git-ignored). Restart the backend after adding it. Grading uses `claude-opus-5-5`: one request per clip with its transcript and 4 small frames.
+To grade clips and upload only the best ones, give the backend an Anthropic API key: either set `ANTHROPIC_API_KEY`, or paste the key into `backend/secrets/anthropic_api_key` (git-ignored). Restart the backend after adding it. Grading sends one request per clip with its transcript and 4 small frames to `claude-haiku-5-5` (well under a cent per clip). For more careful judgment at a higher price, set `GRADER_MODEL` (for example `claude-sonnet-5-5`).
 
 ## Running
 

@@ -15,7 +15,11 @@ from pydantic import BaseModel
 from app.core.config import ANTHROPIC_KEY_FILE, OUTPUT_DIR
 from app.schemas import CaptionOptions
 
-MODEL = "claude-opus-5-5"
+# Haiku is plenty for scoring a one-minute clip and costs a fraction of a cent per clip.
+# Set GRADER_MODEL (e.g. claude-sonnet-5-5) for more careful judgment at a higher price.
+MODEL = os.environ.get("GRADER_MODEL", "claude-haiku-5-5")
+# Models that can retry a declined request on a fallback model server-side (Haiku can't)
+FALLBACK_MODELS = {"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"}
 FRAMES_PER_CLIP = 4
 FRAME_WIDTH = 360  # small frames are plenty to judge the picture and keep the cost down
 TRANSCRIPTS = "transcripts"  # subfolder of the output folder; processor.py writes here
@@ -102,17 +106,20 @@ def grade_clip(client, path, transcript):
         "type": "text",
         "text": f"Transcript:\n{transcript or '(no speech detected)'}\n\nGrade this clip.",
     })
-    response = client.beta.messages.parse(
+    request = dict(
         model=MODEL,
         max_tokens=4000,
         system=SYSTEM_PROMPT,
         output_config={"effort": "medium"},
         output_format=ClipGrade,
-        # If a safety check declines the request, retry it on a fallback model instead of failing
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
         messages=[{"role": "user", "content": content}],
     )
+    if MODEL in FALLBACK_MODELS:
+        # If a safety check declines the request, retry it on a fallback model instead of failing
+        response = client.beta.messages.parse(
+            **request, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+    else:
+        response = client.messages.parse(**request)
     if response.stop_reason == "refusal" or response.parsed_output is None:
         return None
     grade = response.parsed_output
