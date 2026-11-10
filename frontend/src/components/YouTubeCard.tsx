@@ -46,7 +46,7 @@ export function YouTubeCard({ status, onStatus }: {
     : <span className="pill warn">Not connected</span>
 
   return (
-    <Card step={5} title="YouTube account" aside={pill}>
+    <Card step={6} title="YouTube account" aside={pill}>
       <div className="stack">
         <input
           ref={input}

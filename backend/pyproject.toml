@@ -11,6 +11,8 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "python-multipart",
+    "anthropic",
+    "yt-dlp[default]",  # includes the YouTube challenge solver (needs deno installed)
 ]
 
 [build-system]

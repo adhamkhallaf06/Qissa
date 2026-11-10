@@ -48,10 +48,12 @@ def publish_times(schedule, count, now=None):
     now = now or datetime.now(tz)
     start_date = schedule.start_date or now.date() + timedelta(days=1)
 
+    # Fill each day's slots in clock order, so clip 1 (the best one, when grading) goes out first
+    slots = sorted(schedule.time_slots)
     times = []
     for i in range(count):
-        day_offset = i // len(schedule.time_slots)
-        hour, minute = map(int, schedule.time_slots[i % len(schedule.time_slots)].split(":"))
+        day_offset = i // len(slots)
+        hour, minute = map(int, slots[i % len(slots)].split(":"))
         publish_datetime = datetime.combine(start_date + timedelta(days=day_offset), time(hour, minute), tzinfo=tz)
 
         # Ensure it's at least 15 minutes from now
@@ -100,15 +102,18 @@ def get_youtube_client(interactive=True, client_secrets_file=CLIENT_SECRETS_FILE
 
 
 def run(output_dir=OUTPUT_DIR, options=None, interactive=True,
-        client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE):
-    """Upload every *_final.mp4 in output_dir. Returns the uploaded videos."""
+        client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE, files=None):
+    """Upload every *_final.mp4 in output_dir, or just `files` in that order. Returns the uploaded videos."""
     output_folder = str(output_dir)
     options = options or UploadOptions()
 
     youtube = get_youtube_client(interactive, client_secrets_file, token_path)
 
     # --- Process ---
-    video_files = sorted([f for f in os.listdir(output_folder) if f.endswith("_final.mp4")])
+    if files is None:
+        video_files = sorted([f for f in os.listdir(output_folder) if f.endswith("_final.mp4")])
+    else:
+        video_files = [f for f in files if os.path.isfile(os.path.join(output_folder, f))]
     if not video_files:
         print("No *_final.mp4 files found.")
         return []

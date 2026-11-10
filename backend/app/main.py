@@ -2,11 +2,11 @@ import argparse
 
 from app.core.config import INPUT_DIR, OUTPUT_DIR
 from app.schemas import PipelineOptions
-from app.services import cleaner, processor, splitter, uploader
+from app.services import cleaner, grader, processor, splitter, uploader
 
 
 def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_step=None, interactive=True,
-                 uploader_kwargs=None):
+                 uploader_kwargs=None, on_grades=None):
     """Run every enabled step. Returns the list of uploaded videos."""
     options = options or PipelineOptions()
 
@@ -31,12 +31,21 @@ def run_pipeline(options=None, input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, on_st
         run_step("cleaner", cleaner.run,
                  output_dir=output_dir, max_silence_seconds=options.max_silence_seconds)
 
-    # 4. Upload to YouTube
+    # 4. Score each clip with Claude; only the best ones get uploaded, best first
+    files = None
+    if options.grading.enabled:
+        grades = run_step("grader", grader.run, output_dir=output_dir, captions=options.captions)
+        if on_grades:
+            on_grades(grades)
+        files = [g["file"] for g in grades if g["score"] is not None][:options.grading.top_n]
+        print(f"\n🏆 Uploading the top {len(files)} of {len(grades)} clips")
+
+    # 5. Upload to YouTube
     uploads = []
     if options.upload.enabled:
         uploads = run_step("uploader", uploader.run,
                            output_dir=output_dir, options=options.upload, interactive=interactive,
-                           **(uploader_kwargs or {}))
+                           files=files, **(uploader_kwargs or {}))
 
     print("\n✅ ALL STEPS COMPLETED SUCCESSFULLY")
     return uploads or []

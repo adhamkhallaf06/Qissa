@@ -107,6 +107,13 @@ class UploadOptions(BaseModel):
         return cleaned
 
 
+class GradingOptions(BaseModel):
+    """Score each clip with Claude and upload only the best ones."""
+
+    enabled: bool = False  # needs an Anthropic API key
+    top_n: int = Field(3, ge=1, le=100)  # how many of the best clips to upload
+
+
 class PipelineOptions(BaseModel):
     """Which processing steps run and how."""
 
@@ -115,4 +122,5 @@ class PipelineOptions(BaseModel):
     remove_silent: bool = True
     max_silence_seconds: float = Field(5.0, ge=0)
     captions: CaptionOptions = Field(default_factory=CaptionOptions)
+    grading: GradingOptions = Field(default_factory=GradingOptions)
     upload: UploadOptions = Field(default_factory=UploadOptions)
