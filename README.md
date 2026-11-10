@@ -79,6 +79,7 @@ Interactive docs are at http://localhost:8000/docs.
 | `POST /api/jobs/from-link` | JSON `{"url": "<YouTube link>", "options": {...}}`: download the video, then process it like an upload |
 | `GET /api/jobs`, `GET /api/jobs/{id}` | Job status, log, produced clips and uploaded video IDs |
 | `GET /api/jobs/{id}/clips/{name}` | Stream a finished clip |
+| `POST /api/jobs/{id}/retry-upload` | Upload a failed job's remaining clips again (e.g. after YouTube's daily upload limit resets) |
 | `DELETE /api/jobs/{id}` | Remove a finished job and its files |
 | `GET /api/options/defaults` | Default options |
 | `GET /api/grading/status` | Whether an Anthropic API key is set up for grading |

@@ -9,6 +9,29 @@ from app.schemas import UploadOptions
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 TITLE_LIMIT = 100  # YouTube's maximum title length
 
+# YouTube error reasons -> what the user can do about them
+UPLOAD_ERRORS = {
+    "uploadLimitExceeded": "YouTube says this channel has reached its upload limit. Verify the channel at "
+                           "youtube.com/verify or wait about 24 hours, then press Retry upload.",
+    "quotaExceeded": "The YouTube API quota for your Google Cloud project is used up for today. It resets at "
+                     "midnight Pacific time; press Retry upload after that.",
+    "forbidden": "YouTube refused the upload for this account. Check the channel can upload videos, then "
+                 "press Retry upload.",
+}
+
+
+class UploadError(RuntimeError):
+    """A YouTube upload failed; the message says what to do about it."""
+
+
+def _explain(exc, done, total):
+    reasons = {d.get("reason") for d in getattr(exc, "error_details", None) or [] if isinstance(d, dict)}
+    message = next((UPLOAD_ERRORS[r] for r in reasons if r in UPLOAD_ERRORS), None)
+    message = message or f"YouTube returned an error: {getattr(exc, 'reason', None) or exc}"
+    if done:
+        message = f"Uploaded {done} of {total} clips. " + message
+    return message
+
 
 def safe_title(text):
     cleaned = "".join(c if c.isprintable() else "" for c in text)
@@ -42,24 +65,30 @@ def build_metadata(options: UploadOptions, index=0, total=1):
     }
 
 
-def publish_times(schedule, count, now=None):
-    """Publish datetime (in the schedule's timezone) for each of `count` clips."""
+def publish_times(schedule, count, now=None, taken=()):
+    """Publish datetime (in the schedule's timezone) for each of `count` clips.
+
+    `taken` holds times already used by earlier uploads (e.g. before a retry); those slots are skipped.
+    """
+    taken = {datetime.fromisoformat(t) if isinstance(t, str) else t for t in taken}
     tz = ZoneInfo(schedule.timezone)
     now = now or datetime.now(tz)
     start_date = schedule.start_date or now.date() + timedelta(days=1)
 
-    # Fill each day's slots in clock order, so clip 1 (the best one, when grading) goes out first
+    # Fill each day's slots in clock order, so clip 1 (the best one, when grading) goes out first.
+    # Slots less than 15 minutes away are skipped (YouTube needs the time in the future), so a
+    # past start date or a retry later in the day moves on to the next free slot.
     slots = sorted(schedule.time_slots)
+    earliest = now + timedelta(minutes=15)
     times = []
-    for i in range(count):
-        day_offset = i // len(slots)
+    i = 0
+    while len(times) < count:
         hour, minute = map(int, slots[i % len(slots)].split(":"))
-        publish_datetime = datetime.combine(start_date + timedelta(days=day_offset), time(hour, minute), tzinfo=tz)
-
-        # Ensure it's at least 15 minutes from now
-        if publish_datetime < now + timedelta(minutes=15):
-            publish_datetime = (now + timedelta(minutes=15)).replace(microsecond=0)
-        times.append(publish_datetime)
+        day = start_date + timedelta(days=i // len(slots))
+        publish_datetime = datetime.combine(day, time(hour, minute), tzinfo=tz)
+        if publish_datetime >= earliest and publish_datetime not in taken:
+            times.append(publish_datetime)
+        i += 1
     return times
 
 
@@ -102,8 +131,15 @@ def get_youtube_client(interactive=True, client_secrets_file=CLIENT_SECRETS_FILE
 
 
 def run(output_dir=OUTPUT_DIR, options=None, interactive=True,
-        client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE, files=None):
-    """Upload every *_final.mp4 in output_dir, or just `files` in that order. Returns the uploaded videos."""
+        client_secrets_file=CLIENT_SECRETS_FILE, token_path=TOKEN_PICKLE, files=None, on_upload=None,
+        taken_times=()):
+    """Upload every *_final.mp4 in output_dir, or just `files` in that order. Returns the uploaded videos.
+
+    on_upload(video) is called after each upload, so progress survives a failure part-way through.
+    taken_times: publish times (ISO strings) already used by this video's earlier uploads.
+    """
+    from googleapiclient.errors import HttpError
+
     output_folder = str(output_dir)
     options = options or UploadOptions()
 
@@ -119,7 +155,7 @@ def run(output_dir=OUTPUT_DIR, options=None, interactive=True,
         return []
 
     schedule = options.schedule
-    times = publish_times(schedule, len(video_files)) if schedule.enabled else []
+    times = publish_times(schedule, len(video_files), taken=taken_times) if schedule.enabled else []
     uploaded = []
 
     for index, vid in enumerate(video_files):
@@ -145,9 +181,15 @@ def run(output_dir=OUTPUT_DIR, options=None, interactive=True,
             body={"snippet": snippet, "status": status},
             media_body=video_path
         )
-        response = request.execute()
+        try:
+            response = request.execute()
+        except HttpError as exc:
+            raise UploadError(_explain(exc, len(uploaded), len(video_files))) from exc
         print(f"✅ Uploaded Video ID: {response['id']}")
-        uploaded.append({"file": vid, "video_id": response["id"], "title": snippet["title"], "publish_at": publish_iso})
+        video = {"file": vid, "video_id": response["id"], "title": snippet["title"], "publish_at": publish_iso}
+        uploaded.append(video)
+        if on_upload:
+            on_upload(video)
 
     print("\n✅ All videos uploaded" + (" and scheduled." if schedule.enabled else "."))
 

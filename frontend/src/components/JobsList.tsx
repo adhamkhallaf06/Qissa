@@ -32,6 +32,16 @@ function Progress({ job }: { job: Job }) {
   )
 }
 
+/** Clips that should be on YouTube but aren't yet; mirrors pending_uploads() in the backend. */
+function pendingUploads(job: Job) {
+  const done = new Set(job.uploads.map((video) => video.file))
+  const graded = job.options.grading?.enabled && job.grades?.length
+  const wanted = graded
+    ? job.grades!.filter((g) => g.score !== null).slice(0, job.options.grading.top_n).map((g) => g.file)
+    : [...job.clips]
+  return wanted.filter((file) => job.clips.includes(file) && !done.has(file))
+}
+
 function Grades({ job, grades }: { job: Job; grades: ClipGrade[] }) {
   const uploaded = new Set(job.uploads.map((video) => video.file))
   return (
@@ -58,7 +68,11 @@ function Grades({ job, grades }: { job: Job; grades: ClipGrade[] }) {
   )
 }
 
-export function JobsList({ jobs, onDelete }: { jobs: Job[]; onDelete: (job: Job) => void }) {
+export function JobsList({ jobs, onDelete, onRetry }: {
+  jobs: Job[]
+  onDelete: (job: Job) => void
+  onRetry: (job: Job) => void
+}) {
   if (!jobs.length) {
     return <p className="hint empty">Nothing yet. Videos you start will show up here with their clips.</p>
   }
@@ -82,6 +96,14 @@ export function JobsList({ jobs, onDelete }: { jobs: Job[]; onDelete: (job: Job)
 
           {isActive(job.status) && <Progress job={job} />}
           {job.error && <p className="error">{job.error}</p>}
+          {job.status === 'failed' && job.options.upload.enabled && pendingUploads(job).length > 0 && (
+            <div className="row">
+              <button type="button" className="btn small" onClick={() => onRetry(job)}>
+                Retry upload ({pendingUploads(job).length} {pendingUploads(job).length === 1 ? 'clip' : 'clips'})
+              </button>
+              <span className="hint">Uploads the remaining clips without processing the video again.</span>
+            </div>
+          )}
 
           {job.uploads.length > 0 && (
             <ul className="uploads">
