@@ -13,7 +13,7 @@ class CaptionOptions(BaseModel):
     enabled: bool = True
 
     # --- Transcription ---
-    language: Optional[str] = "ar"  # None = let Whisper detect it
+    language: Optional[str] = None  # None = let Whisper detect it
     model: Literal["tiny", "base", "small", "medium", "large"] = "base"
     max_words: Optional[int] = Field(None, ge=1, le=20)  # words per caption; None = full sentence
 
@@ -56,9 +56,9 @@ class ScheduleOptions(BaseModel):
     """When clips go public. One clip per time slot, rolling over to the next day."""
 
     enabled: bool = True  # False = publish as soon as the upload finishes
-    timezone: str = "Africa/Cairo"
+    timezone: str = "UTC"  # the web UI fills in the browser's timezone
     start_date: Optional[date] = None  # None = tomorrow
-    time_slots: List[str] = Field(default=["09:00", "00:00", "16:00", "20:00", "23:00"], min_length=1)
+    time_slots: List[str] = Field(default_factory=list)  # HH:MM; at least one is needed to schedule
 
     @field_validator("timezone")
     @classmethod
@@ -85,10 +85,7 @@ class UploadOptions(BaseModel):
     enabled: bool = True
     title: str = ""
     description: str = ""
-    hashtags: List[str] = Field(default=[
-        "#علم", "#العوامل", "#النظافه", "#اكسبلور", "#fypage", "#تاريخ", "#viralvideo",
-        "#قصص", "#اهميه", "#film", "#سفر", "#قصص", "#رمضان",
-    ])
+    hashtags: List[str] = Field(default_factory=list)
     hashtags_in_title: bool = True
     number_clips: bool = False  # append "Part N" when a video yields several clips
     category_id: str = "22"
@@ -102,7 +99,7 @@ class UploadOptions(BaseModel):
         cleaned = []
         for tag in hashtags:
             tag = "".join(tag.split()).lstrip("#")
-            if tag:
+            if tag and f"#{tag}" not in cleaned:
                 cleaned.append(f"#{tag}")
         return cleaned
 

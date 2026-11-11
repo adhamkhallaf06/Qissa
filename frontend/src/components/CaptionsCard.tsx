@@ -1,6 +1,6 @@
-import type { CaptionOptions, PipelineOptions } from '../api'
+import type { CaptionOptions, CaptionStyle, History, HistoryKind, PipelineOptions } from '../api'
 import { CaptionPreview } from './CaptionPreview'
-import { Card, Field, Toggle } from './ui'
+import { Card, Field, Recent, Toggle } from './ui'
 
 const LANGUAGES: [string, string][] = [
   ['', 'Auto-detect'], ['ar', 'Arabic'], ['en', 'English'], ['fr', 'French'], ['es', 'Spanish'],
@@ -12,12 +12,31 @@ const MODELS: [CaptionOptions['model'], string][] = [
   ['tiny', 'Tiny — fastest'], ['base', 'Base'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large — most accurate'],
 ]
 
-export function CaptionsCard({ options, onChange }: {
+const sameStyle = (a: CaptionStyle, b: CaptionOptions) =>
+  (Object.keys(a) as (keyof CaptionStyle)[]).every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]))
+
+const LANGUAGE_NAMES = Object.fromEntries(LANGUAGES)
+
+function styleLabel(style: CaptionStyle) {
+  return (
+    <>
+      <span className="recent-dots" aria-hidden="true">
+        {style.colors.map((color, i) => <i key={i} style={{ background: color }} />)}
+      </span>
+      <span>{style.font_name} {style.font_size} · {style.position}{style.language ? ` · ${LANGUAGE_NAMES[style.language] ?? style.language}` : ''}</span>
+    </>
+  )
+}
+
+export function CaptionsCard({ options, onChange, history, onForget }: {
   options: PipelineOptions
   onChange: (options: PipelineOptions) => void
+  history: History | null
+  onForget: (kind: HistoryKind, value: CaptionStyle) => void
 }) {
   const captions = options.captions
   const set = (patch: Partial<CaptionOptions>) => onChange({ ...options, captions: { ...captions, ...patch } })
+  const styles = (history?.captions ?? []).map((item) => item.value).filter((style) => !sameStyle(style, captions))
   const setColor = (index: number, color: string) =>
     set({ colors: captions.colors.map((c, i) => (i === index ? color : c)) })
 
@@ -30,6 +49,12 @@ export function CaptionsCard({ options, onChange }: {
       <div className="captions-layout">
         <div className="stack">
           <fieldset disabled={!captions.enabled} className="stack">
+            <Recent label="Recent styles" items={styles.map((style) => ({
+              key: JSON.stringify(style),
+              label: styleLabel(style),
+              onPick: () => set(style),
+              onForget: () => onForget('captions', style),
+            }))} />
             <div className="grid-2">
               <Field label="Spoken language">
                 <select value={captions.language ?? ''} onChange={(e) => set({ language: e.target.value || null })}>

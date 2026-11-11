@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, type GradingStatus, type Job, type PipelineOptions, type UploadOptions, type YouTubeStatus } from '../api'
+import { api, type GradingStatus, type History, type HistoryKind, type Job, type PipelineOptions, type UploadOptions, type YouTubeStatus } from '../api'
 import { CaptionsCard } from '../components/CaptionsCard'
 import { DetailsCard } from '../components/DetailsCard'
 import { GradingCard } from '../components/GradingCard'
@@ -22,17 +22,19 @@ export function Studio() {
   const [youtube, setYoutube] = useState<YouTubeStatus | null>(null)
   const [grading, setGrading] = useState<GradingStatus | null>(null)
   const [jobs, setJobs] = useState<Job[]>([])
+  const [history, setHistory] = useState<History | null>(null)
   const [loadError, setLoadError] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [progress, setProgress] = useState<number | null>(null)
 
   const refreshJobs = useCallback(() => api.jobs().then(setJobs).catch(() => {}), [])
+  const refreshHistory = useCallback(() => api.history().then(setHistory).catch(() => {}), [])
 
   const load = useCallback(async () => {
     try {
       const [defaults, status, gradingStatus] = await Promise.all([api.defaults(), api.youtubeStatus(), api.gradingStatus()])
-      // Chips are keyed by value, so drop repeated hashtags
-      defaults.upload.hashtags = [...new Set(defaults.upload.hashtags)]
+      // The form starts empty; publish times are in the viewer's own timezone unless they pick another
+      defaults.upload.schedule.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || defaults.upload.schedule.timezone
       setOptions((current) => current ?? defaults)
       setYoutube(status)
       setGrading(gradingStatus)
@@ -45,9 +47,10 @@ export function Studio() {
   useEffect(() => {
     load()
     refreshJobs()
+    refreshHistory()
     const timer = setInterval(refreshJobs, JOBS_POLL_MS)
     return () => clearInterval(timer)
-  }, [load, refreshJobs])
+  }, [load, refreshJobs, refreshHistory])
 
   if (!options) {
     return (
@@ -71,6 +74,7 @@ export function Studio() {
   const blocker = source === 'file' && !file ? 'Choose a video first'
     : source === 'link' && !trimmedLink ? 'Paste a YouTube link first'
     : source === 'link' && !YOUTUBE_LINK.test(trimmedLink) ? 'That doesn’t look like a YouTube link'
+    : upload.enabled && upload.schedule.enabled && !upload.schedule.time_slots.length ? 'Add a publish time in step 5, or choose Publish right away'
     : needsYouTube ? 'Connect YouTube, or turn off uploading in step 5'
     : ''
 
@@ -88,13 +92,19 @@ export function Studio() {
         await api.createJob(file, options, setProgress)
         setFile(null)
       }
-      await refreshJobs()
+      await Promise.all([refreshJobs(), refreshHistory()])
       document.getElementById('jobs')?.scrollIntoView({ behavior: 'smooth' })
     } catch (e) {
       setSubmitError((e as Error).message)
     } finally {
       setProgress(null)
     }
+  }
+
+  const forget = <K extends HistoryKind>(kind: K, value: History[K][number]['value']) => {
+    // Hide it right away; the server copy follows
+    setHistory((h) => h && { ...h, [kind]: h[kind].filter((item) => item.value !== value) })
+    api.forgetHistory(kind, value).catch(() => {}).finally(refreshHistory)
   }
 
   const retryUpload = async (job: Job) => {
@@ -155,15 +165,15 @@ export function Studio() {
         </div>
       </Card>
 
-      <DetailsCard upload={upload} onChange={setUpload} />
-      <CaptionsCard options={options} onChange={setOptions} />
+      <DetailsCard upload={upload} onChange={setUpload} history={history} onForget={forget} />
+      <CaptionsCard options={options} onChange={setOptions} history={history} onForget={forget} />
       <GradingCard
         grading={options.grading}
         status={grading}
         uploading={upload.enabled}
         onChange={(value) => setOptions({ ...options, grading: value })}
       />
-      <ScheduleCard upload={upload} onChange={setUpload} />
+      <ScheduleCard upload={upload} onChange={setUpload} history={history} onForget={forget} />
       {upload.enabled && <YouTubeCard status={youtube} onStatus={setYoutube} />}
 
       <div className="submit">

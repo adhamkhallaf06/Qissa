@@ -232,3 +232,16 @@ input[type='color'] { width: 36px; height: 32px; padding: 2px; border: 1px solid
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Recent values from earlier jobs */
+.recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.recent-item { display: inline-flex; align-items: center; max-width: 100%; border: 1px dashed var(--border); border-radius: 999px; background: var(--surface); }
+.recent-pick { font: inherit; font-size: 13px; color: var(--text); background: none; border: 0; padding: 3px 2px 3px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 340px; }
+.recent-pick > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-pick:hover { color: var(--accent); }
+.recent-forget { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 0; padding: 3px 9px 3px 4px; cursor: pointer; line-height: 1; }
+.recent-forget:hover { color: var(--bad); }
+.recent-dots { display: inline-flex; }
+.recent-dots i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border); margin-left: -3px; }
+.recent-dots i:first-child { margin-left: 0; }
+.align-start { align-self: flex-start; }

@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS sessions (
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS history (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind    TEXT NOT NULL,  -- title, hashtag, captions, schedule
+    value   TEXT NOT NULL,  -- the text, or JSON for captions and schedule
+    used_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, kind, value)
+);
 """
 
 

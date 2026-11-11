@@ -79,6 +79,8 @@ def publish_times(schedule, count, now=None, taken=()):
     # Slots less than 15 minutes away are skipped (YouTube needs the time in the future), so a
     # past start date or a retry later in the day moves on to the next free slot.
     slots = sorted(schedule.time_slots)
+    if not slots:
+        raise ValueError("Add at least one publish time to the schedule.")
     earliest = now + timedelta(minutes=15)
     times = []
     i = 0

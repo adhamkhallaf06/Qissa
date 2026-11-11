@@ -85,3 +85,28 @@ export function ChipInput({ values, onChange, placeholder, format, type = 'text'
     </div>
   )
 }
+
+export interface RecentItem {
+  key: string
+  label: ReactNode
+  /** Tooltip, e.g. the full value when the label is shortened */
+  title?: string
+  onPick: () => void
+  onForget: () => void
+}
+
+/** One-click suggestions from earlier jobs, each with a × to forget it. */
+export function Recent({ label = 'Recent', items }: { label?: string; items: RecentItem[] }) {
+  if (!items.length) return null
+  return (
+    <div className="recent">
+      <span className="hint">{label}</span>
+      {items.map((item) => (
+        <span className="recent-item" key={item.key}>
+          <button type="button" className="recent-pick" title={item.title} onClick={item.onPick}>{item.label}</button>
+          <button type="button" className="recent-forget" aria-label="Remove from history" title="Remove from history" onClick={item.onForget}>×</button>
+        </span>
+      ))}
+    </div>
+  )
+}

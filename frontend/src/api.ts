@@ -77,6 +77,24 @@ export interface YouTubeStatus {
   redirect_uri: string
 }
 
+export interface HistoryItem<T> {
+  value: T
+  used_at: string
+}
+
+export type CaptionStyle = Omit<CaptionOptions, 'enabled'>
+export type SavedSchedule = Pick<ScheduleOptions, 'time_slots' | 'timezone'>
+
+/** Values used in earlier jobs, most recent first */
+export interface History {
+  title: HistoryItem<string>[]
+  hashtag: HistoryItem<string>[]
+  captions: HistoryItem<CaptionStyle>[]
+  schedule: HistoryItem<SavedSchedule>[]
+}
+
+export type HistoryKind = keyof History
+
 export type JobStatus =
   | 'queued' | 'downloading' | 'splitting' | 'processing' | 'cleaning' | 'grading' | 'uploading' | 'done' | 'failed'
 
@@ -147,6 +165,9 @@ export const api = {
 
   defaults: () => request<PipelineOptions>('/api/options/defaults'),
   jobs: () => request<Job[]>('/api/jobs'),
+  history: () => request<History>('/api/history'),
+  forgetHistory: (kind: HistoryKind, value: History[HistoryKind][number]['value']) =>
+    request<void>('/api/history/forget', json({ kind, value })),
   retryUpload: (id: string) => request<Job>(`/api/jobs/${id}/retry-upload`, { method: 'POST' }),
   deleteJob: (id: string) => request<void>(`/api/jobs/${id}`, { method: 'DELETE' }),
   clipUrl: (jobId: string, name: string) => `/api/jobs/${jobId}/clips/${encodeURIComponent(name)}`,

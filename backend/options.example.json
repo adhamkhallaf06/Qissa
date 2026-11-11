@@ -5,7 +5,7 @@
   "max_silence_seconds": 5.0,
   "captions": {
     "enabled": true,
-    "language": "ar",
+    "language": null,
     "model": "base",
     "max_words": null,
     "font_name": "Arial Unicode MS",
@@ -30,36 +30,16 @@
     "enabled": true,
     "title": "",
     "description": "",
-    "hashtags": [
-      "#علم",
-      "#العوامل",
-      "#النظافه",
-      "#اكسبلور",
-      "#fypage",
-      "#تاريخ",
-      "#viralvideo",
-      "#قصص",
-      "#اهميه",
-      "#film",
-      "#سفر",
-      "#قصص",
-      "#رمضان"
-    ],
+    "hashtags": [],
     "hashtags_in_title": true,
     "number_clips": false,
     "category_id": "22",
     "privacy": "private",
     "schedule": {
       "enabled": true,
-      "timezone": "Africa/Cairo",
+      "timezone": "UTC",
       "start_date": null,
-      "time_slots": [
-        "09:00",
-        "00:00",
-        "16:00",
-        "20:00",
-        "23:00"
-      ]
+      "time_slots": []
     },
     "delete_after_upload": true
   }

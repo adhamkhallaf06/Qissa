@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import type { ScheduleOptions, UploadOptions } from '../api'
-import { Card, ChipInput, Field, Toggle } from './ui'
+import type { History, HistoryKind, SavedSchedule, ScheduleOptions, UploadOptions } from '../api'
+import { Card, ChipInput, Field, Recent, Toggle } from './ui'
 
 function timezones(current: string) {
   let zones: string[] = []
@@ -12,14 +12,19 @@ function timezones(current: string) {
   return zones.includes(current) ? zones : [current, ...zones]
 }
 
-export function ScheduleCard({ upload, onChange }: {
+export function ScheduleCard({ upload, onChange, history, onForget }: {
   upload: UploadOptions
   onChange: (patch: Partial<UploadOptions>) => void
+  history: History | null
+  onForget: (kind: HistoryKind, value: SavedSchedule) => void
 }) {
   const schedule = upload.schedule
   const set = (patch: Partial<ScheduleOptions>) => onChange({ schedule: { ...schedule, ...patch } })
   const zones = useMemo(() => timezones(schedule.timezone), [schedule.timezone])
   const local = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const current = [...schedule.time_slots].sort().join()
+  const saved = (history?.schedule ?? []).map((item) => item.value)
+    .filter((s) => s.time_slots.join() !== current || s.timezone !== schedule.timezone)
 
   return (
     <Card
@@ -42,9 +47,16 @@ export function ScheduleCard({ upload, onChange }: {
                 <ChipInput
                   type="time"
                   values={schedule.time_slots}
-                  onChange={(time_slots) => time_slots.length && set({ time_slots: [...time_slots].sort() })}
+                  onChange={(time_slots) => set({ time_slots: [...time_slots].sort() })}
                 />
               </Field>
+              <Recent label="Used before" items={saved.map((s) => ({
+                key: `${s.time_slots.join()}|${s.timezone}`,
+                label: <span>{s.time_slots.join(' · ')}{s.timezone !== schedule.timezone ? ` (${s.timezone})` : ''}</span>,
+                title: `${s.time_slots.join(', ')} — ${s.timezone}`,
+                onPick: () => set({ time_slots: s.time_slots, timezone: s.timezone }),
+                onForget: () => onForget('schedule', s),
+              }))} />
               <div className="grid-2">
                 <Field label="Start date" hint="Empty = tomorrow">
                   <input type="date" value={schedule.start_date ?? ''} onChange={(e) => set({ start_date: e.target.value || null })} />

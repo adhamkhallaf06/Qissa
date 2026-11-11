@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+from typing import Literal, Union
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -8,7 +9,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.api.auth import current_user
 from app.schemas import PipelineOptions
-from app.services import downloader, grader, jobs, youtube_auth
+from app.services import downloader, grader, history, jobs, youtube_auth
 from app.services.splitter import allowed_extensions
 
 router = APIRouter(prefix="/api", tags=["jobs"])
@@ -40,6 +41,9 @@ def _check_options(options: PipelineOptions, user):
         raise HTTPException(400, "Connect your YouTube account first, or turn off uploading.")
     if options.grading.enabled and not grader.available():
         raise HTTPException(400, "Grading needs an Anthropic API key on the server, or turn off grading.")
+    schedule = options.upload.schedule
+    if options.upload.enabled and schedule.enabled and not schedule.time_slots:
+        raise HTTPException(400, "Add at least one publish time, or choose Publish right away.")
 
 
 @router.post("/jobs", status_code=201)
@@ -55,7 +59,9 @@ def create_job(file: UploadFile, options: str = Form("{}"), user=Depends(current
     job_id = jobs.new_id()
     with open(jobs.input_dir(job_id) / filename, "wb") as target:
         shutil.copyfileobj(file.file, target)
-    return jobs.start(job_id, filename, parsed, user["id"])
+    job = jobs.start(job_id, filename, parsed, user["id"])
+    history.record(user["id"], parsed)
+    return job
 
 
 class LinkJob(BaseModel):
@@ -73,7 +79,25 @@ def create_job_from_link(body: LinkJob, user=Depends(current_user)):
         raise HTTPException(400, str(exc))
 
     job_id = jobs.new_id()
-    return jobs.start(job_id, video["title"], body.options, user["id"], source_url=body.url.strip())
+    job = jobs.start(job_id, video["title"], body.options, user["id"], source_url=body.url.strip())
+    history.record(user["id"], body.options)
+    return job
+
+
+@router.get("/history")
+def get_history(user=Depends(current_user)):
+    """Titles, hashtags, caption styles and publish times used before, most recent first."""
+    return history.get(user["id"])
+
+
+class ForgetItem(BaseModel):
+    kind: Literal["title", "hashtag", "captions", "schedule"]
+    value: Union[str, dict]
+
+
+@router.post("/history/forget", status_code=204)
+def forget_history(item: ForgetItem, user=Depends(current_user)):
+    history.forget(user["id"], item.kind, item.value)
 
 
 @router.get("/jobs")
